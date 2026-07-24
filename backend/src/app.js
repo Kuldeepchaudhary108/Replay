@@ -10,6 +10,8 @@ app.use(
     origin: [
       "http://localhost:3000",
       "http://localhost:3001",
+      "https://replay-nine-ruddy.vercel.app/",
+      "https://replay.kuldeepchaudhary.dev/"
     ],
     credentials: true,
   })
