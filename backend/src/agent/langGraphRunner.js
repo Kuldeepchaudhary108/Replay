@@ -9,6 +9,7 @@ import {
 } from "./agents.js";
 
 const AgentState = Annotation.Root({
+  runId: Annotation(),
   repoUrl: Annotation(),
   teamName: Annotation(),
   leaderName: Annotation(),

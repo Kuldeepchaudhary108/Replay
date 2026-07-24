@@ -1,4 +1,5 @@
 import { execSync } from "child_process";
+import { emitRunEvent } from "../utils/executionContext.js";
 
 /**
  * Steps that MUST NOT run locally
@@ -45,6 +46,13 @@ export function executePipeline(commands, repoPath) {
   for (let command of commands) {
     // 🔴 Skip CI-only / deployment steps
     if (isCIContextStep(command)) {
+      emitRunEvent({
+        type: "STATUS",
+        agent: "executor",
+        status: "RUNNING",
+        message: `Skipping CI-context step: ${command}`,
+        command,
+      });
       console.log("[PIPELINE] Skipping CI-context step");
       skipped.push(command);
       continue;
@@ -53,12 +61,26 @@ export function executePipeline(commands, repoPath) {
     command = sanitizeGitHubSyntax(command);
 
     if (isContainerTestStep(command)) {
+      emitRunEvent({
+        type: "STATUS",
+        agent: "executor",
+        status: "RUNNING",
+        message: `Preparing container test environment for ${command}`,
+        command,
+      });
       console.log("[PIPELINE] Preparing container test environment");
 
       // 🔥 CLEAN PREVIOUS CONTAINER
       cleanupTestContainer();
 
       console.log("[PIPELINE] Running container-based tests");
+      emitRunEvent({
+        type: "STATUS",
+        agent: "executor",
+        status: "RUNNING",
+        message: `Running ${command}`,
+        command,
+      });
 
       try {
         execSync(command, {
@@ -69,6 +91,15 @@ export function executePipeline(commands, repoPath) {
       } catch (err) {
         // clean even on failure
         cleanupTestContainer();
+
+        emitRunEvent({
+          type: "ERROR",
+          agent: "executor",
+          status: "FAILED",
+          message: err.message,
+          command,
+          error: err.message,
+        });
 
         return {
           success: false,
@@ -85,6 +116,13 @@ export function executePipeline(commands, repoPath) {
 
     // 🟡 Normal executable steps (docker build, npm test, etc.)
     try {
+      emitRunEvent({
+        type: "STATUS",
+        agent: "executor",
+        status: "RUNNING",
+        message: `Running ${command}`,
+        command,
+      });
       console.log("[PIPELINE] Running:", command);
 
       execSync(command, {
@@ -93,6 +131,15 @@ export function executePipeline(commands, repoPath) {
         shell: true,
       });
     } catch (err) {
+      emitRunEvent({
+        type: "ERROR",
+        agent: "executor",
+        status: "FAILED",
+        message: err.message,
+        command,
+        error: err.message,
+      });
+
       return {
         success: false,
         error: err.message,
@@ -101,6 +148,13 @@ export function executePipeline(commands, repoPath) {
       };
     }
   }
+
+  emitRunEvent({
+    type: "STATUS",
+    agent: "executor",
+    status: "SUCCESS",
+    message: "Pipeline commands completed successfully",
+  });
 
   return {
     success: true,

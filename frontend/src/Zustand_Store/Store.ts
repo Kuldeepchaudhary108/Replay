@@ -68,8 +68,9 @@ const useStore = create<StoreState>()(
         set({ loading: true, error: null });
         try {
           const response = await api.post("/login", { email, password });
-          const { token, user } = response.data;
-          document.cookie = `token=${token}; path=/; secure; samesite=none; max-age=${7 * 24 * 60 * 60}`; // 7 days
+          const payload = response.data?.data ?? response.data;
+          const user = payload?.user ?? payload ?? null;
+          const token = payload?.accessToken ?? response.data?.accessToken ?? null;
           set({ token, user, isAuthenticated: true, loading: false });
         } catch (error: unknown) {
           console.error("Login failed:", error);
@@ -89,10 +90,10 @@ const useStore = create<StoreState>()(
         try {
           const response = await api.post("/google-login", googleData);
           console.log("google login response", response.data);
-          const { token, user } = response.data;
-          document.cookie = `token=${token}; path=/; secure; samesite=none; max-age=${7 * 24 * 60 * 60}`; // 7 days
+          const payload = response.data?.data ?? response.data;
+          const user = payload?.user ?? payload ?? null;
 
-          set({ token, user, isAuthenticated: true, loading: false });
+          set({ token: null, user, isAuthenticated: true, loading: false });
         } catch (error: unknown) {
           console.error("Google login failed:", error);
           set({
@@ -110,9 +111,10 @@ const useStore = create<StoreState>()(
         set({ loading: true, error: null });
         try {
           const response = await api.post("/register", data);
-          const { token, user } = response.data;
-          document.cookie = `token=${token}; path=/; secure; samesite=none; max-age=${7 * 24 * 60 * 60 * 1000 * 365 * 5}`; // 7 days
-          set({ token, user, isAuthenticated: true, loading: false });
+          const payload = response.data?.data ?? response.data;
+          const user = payload?.user ?? payload ?? null;
+
+          set({ token: null, user, isAuthenticated: true, loading: false });
         } catch (error: unknown) {
           console.error("Registration failed:", error);
           set({

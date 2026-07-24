@@ -1,9 +1,17 @@
 import fs from "fs";
 import yaml from "js-yaml";
+import { emitRunEvent } from "../utils/executionContext.js";
 
 export function extractPipelineCommands(repoPath) {
   const workflowDir = `${repoPath}/.github/workflows`;
   const files = fs.readdirSync(workflowDir);
+
+  emitRunEvent({
+    type: "STATUS",
+    agent: "pipeline",
+    status: "RUNNING",
+    message: "Parsing workflow YAML",
+  });
 
   const commands = [];
 
@@ -22,6 +30,14 @@ export function extractPipelineCommands(repoPath) {
       }
     }
   }
+
+  emitRunEvent({
+    type: "STATUS",
+    agent: "pipeline",
+    status: "SUCCESS",
+    message: "Workflow commands extracted",
+    commands,
+  });
 
   return commands;
 }

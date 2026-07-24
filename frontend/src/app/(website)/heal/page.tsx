@@ -58,23 +58,20 @@ const HealPage = () => {
 
     setIsLoading(true);
     try {
+      const runId = crypto.randomUUID();
       const { BACKEND_URL } = await import("../../../lib/config");
-      const response = await axios.post(
-        `${BACKEND_URL}/agent/run-agent`,
-        {
-          repoUrl,
-          teamName: teamName || "Anonymous Team",
-          leaderName: teamLeader || "Anonymous Leader",
-          githubToken: token,
-        },
-      );
+      void axios.post(`${BACKEND_URL}/agent/run-agent`, {
+        runId,
+        repoUrl,
+        teamName: teamName || "Anonymous Team",
+        leaderName: teamLeader || "Anonymous Leader",
+        githubToken: token,
+      }).catch((error) => {
+        console.error("Error starting agent:", error);
+      });
 
-      if (response.data.success) {
-        toast.success("Agent started successfully!");
-        router.push(`/project/${response.data.projectId}`);
-      } else {
-        toast.error("Failed to start agent");
-      }
+      toast.success("Agent launched");
+      router.push(`/project/${runId}`);
     } catch (error) {
       console.error("Error running agent:", error);
       toast.error("Error communicating with server");

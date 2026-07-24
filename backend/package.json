@@ -9,12 +9,16 @@
     "@langchain/core": "^1.1.26",
     "@langchain/langgraph": "^1.1.5",
     "axios": "^1.6.7",
+    "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.19.2",
     "fs-extra": "^11.3.3",
     "js-yaml": "^4.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.8.0",
     "openai": "^4.28.0",
-    "simple-git": "^3.25.0"
+    "simple-git": "^3.25.0",
+    "socket.io": "^4.8.3"
   }
 }

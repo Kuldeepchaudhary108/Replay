@@ -1,18 +1,10 @@
-import {
-  ApiResponse,
-  ApiError,
-  asyncHandler,
-  uploadOnCloudinary,
-} from "../utils/index.js";
+import { ApiResponse, ApiError, asyncHandler } from "../utils/utils.index.js";
 import { User } from "../models/user.model.js";
-import { Message } from "../models/message.model.js";
 import fs from "fs";
-import { OAuth2Client } from "google-auth-library";
 
 const gernateAccessAndRefreshTokens = async (userId) => {
   try {
     const user = await User.findById(userId);
-
     const accessToken = user.generateAccessToken();
     const refreshToken = user.generateRefreshToken();
 
@@ -21,17 +13,24 @@ const gernateAccessAndRefreshTokens = async (userId) => {
 
     return { accessToken, refreshToken };
   } catch (error) {
-    throw new ApiError(
-      500,
-      " something went wrong while generaing refresh and access token ",
-    );
+    console.error("TOKEN ERROR:", error);
+    // throw new ApiError(
+    //   500,
+    //   " something went wrong while generaing refresh and access token ",
+    // );
+    throw error;
   }
 };
 
 const signup = asyncHandler(async (req, res) => {
-  const { email, name, password } = req.body;
-
-  if ([name, email, password].some((field) => String(field).trim() === "")) {
+  const { email, password, fullname } = req.body;
+  const resolvedName = [fullname?.firstname, fullname?.lastname]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  if (
+    [resolvedName, email, password].some((field) => String(field).trim() === "")
+  ) {
     throw new ApiError(400, "All fields are required");
   }
 
@@ -39,9 +38,6 @@ const signup = asyncHandler(async (req, res) => {
   //   $or: [{ email }, { contact }],
   // });
   const orConditions = [{ email }];
-  if (contact && contact > 1000000000) {
-    orConditions.push({ contact });
-  }
 
   const existUser = await User.findOne({ $or: orConditions });
 
@@ -51,7 +47,7 @@ const signup = asyncHandler(async (req, res) => {
 
   const user = await User.create({
     email: email?.toLowerCase(),
-    name: name.toLowerCase(),
+    name: resolvedName.toLowerCase(),
     password,
   });
 
@@ -71,12 +67,12 @@ const signup = asyncHandler(async (req, res) => {
     "-password -refreshToken",
   );
 
- 
+  const isProduction = process.env.NODE_ENV === "production";
   const options = {
-    secure: true, 
+    secure: isProduction,
     httpOnly: true,
-    sameSite: "None", 
-    maxAge: 24 * 60 * 60 * 1000, 
+    sameSite: isProduction ? "None" : "Lax",
+    maxAge: 24 * 60 * 60 * 1000,
   };
 
   return res
@@ -115,13 +111,14 @@ const loginUser = asyncHandler(async (req, res) => {
     "-password -refreshToken",
   );
 
+  const isProduction = process.env.NODE_ENV === "production";
   const options = {
-    secure: true, 
-    httpOnly: true, 
-    sameSite: "None",
-    maxAge: 24 * 60 * 60 * 1000, 
+    secure: isProduction,
+    httpOnly: true,
+    sameSite: isProduction ? "None" : "Lax",
+    maxAge: 24 * 60 * 60 * 1000,
   };
-
+  console.log("login successfully ");
   return res
     .status(200)
     .cookie("accessToken", accessToken, options)
@@ -141,10 +138,9 @@ const loginUser = asyncHandler(async (req, res) => {
 
 //this is send req to google
 // 2. Controller to redirect to Google
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-
 const googleAuthHandler = asyncHandler(async (req, res) => {
   const redirectPath = req.query.redirect || "/";
+  const { OAuth2Client } = await import("google-auth-library");
   const authorizeUrl = new OAuth2Client(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
@@ -171,6 +167,9 @@ const googleCallbackHandler = asyncHandler(async (req, res) => {
   }
 
   try {
+    const { OAuth2Client } = await import("google-auth-library");
+    const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
     // Exchange authorization code for tokens
     const { tokens } = await new OAuth2Client(
       process.env.GOOGLE_CLIENT_ID,
@@ -218,11 +217,12 @@ const googleCallbackHandler = asyncHandler(async (req, res) => {
     user.refreshToken = refreshToken;
     await user.save({ validateBeforeSave: false });
 
+    const isProduction = process.env.NODE_ENV === "production";
     const options = {
-      secure: true, // ✅ Must be true in production with HTTPS
-      httpOnly: true, // ✅ Prevent JS access
-      sameSite: "None", // ✅ Needed for cross-domain (e.g., www.infou.in and api.infou.in)
-      maxAge: 24 * 60 * 60 * 1000, // ✅ 1 day in milliseconds
+      secure: isProduction,
+      httpOnly: true,
+      sameSite: isProduction ? "None" : "Lax",
+      maxAge: 24 * 60 * 60 * 1000,
     };
 
     // const redirectURL = isNewUser
@@ -259,7 +259,12 @@ const logoutUser = asyncHandler(async (req, res) => {
     { new: true },
   );
 
-  const options = { secure: true, httpOnly: true, sameSite: "none" };
+  const isProduction = process.env.NODE_ENV === "production";
+  const options = {
+    secure: isProduction,
+    httpOnly: true,
+    sameSite: isProduction ? "None" : "Lax",
+  };
 
   return res
     .status(200)
@@ -314,7 +319,12 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
       throw new ApiError(401, "Refresh token is expired or used");
     }
 
-    const options = { secure: true, httpOnly: true, sameSite: "none" };
+    const isProduction = process.env.NODE_ENV === "production";
+    const options = {
+      secure: isProduction,
+      httpOnly: true,
+      sameSite: isProduction ? "None" : "Lax",
+    };
 
     const { accessToken, newRefreshToken } =
       await gernateAccessAndRefreshTokens(user._id);

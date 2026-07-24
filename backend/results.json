@@ -1,7 +1,12 @@
 {
+  "runId": "2a1fb335-f003-4f14-b7bc-0611af030926",
   "repoUrl": "https://github.com/Kuldeepchaudhary108/test-error",
-  "branch": "RIFT_ORGANISERS_KULDEEP_AI_FIX",
+  "branch": "KUL_GARUD_AI_FIX",
+  "status": "PASSED",
+  "startedAt": "2026-07-24T12:28:57.616Z",
+  "completedAt": "2026-07-24T12:31:55.649Z",
   "retryUsed": "2/5",
+  "retryCount": 2,
   "timeline": [
     {
       "iteration": 1,
@@ -13,7 +18,7 @@
       "filesModified": [
         "package.json"
       ],
-      "timestamp": "2026-07-23T21:23:10.915Z"
+      "timestamp": "2026-07-24T12:31:20.948Z"
     },
     {
       "iteration": 2,
@@ -23,8 +28,35 @@
       "errorMessage": null,
       "agentAction": "Pipeline executed successfully",
       "filesModified": [],
-      "timestamp": "2026-07-23T21:23:34.697Z"
+      "timestamp": "2026-07-24T12:31:53.586Z"
     }
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "status": "FAILED",
+      "failedStep": "npm test",
+      "errorType": "CI_CONFIG",
+      "errorMessage": "Missing npm test script",
+      "agentAction": "Added default npm test script",
+      "filesModified": [
+        "package.json"
+      ],
+      "timestamp": "2026-07-24T12:31:20.948Z"
+    },
+    {
+      "iteration": 2,
+      "status": "PASSED",
+      "failedStep": null,
+      "errorType": null,
+      "errorMessage": null,
+      "agentAction": "Pipeline executed successfully",
+      "filesModified": [],
+      "timestamp": "2026-07-24T12:31:53.586Z"
+    }
+  ],
+  "filesModified": [
+    "package.json"
   ],
   "score": {
     "base": 100,
@@ -32,6 +64,5 @@
     "efficiencyPenalty": 0,
     "final": 110
   },
-  "totalTimeSeconds": 86,
-  "status": "PASSED"
+  "totalTimeSeconds": 178
 }

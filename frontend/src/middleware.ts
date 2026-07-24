@@ -11,7 +11,7 @@ const getBackendUrl = () => {
 };
 
 export async function middleware(request: NextRequest) {
-  const token = request.cookies.get("token")?.value;
+const token = request.cookies.get("accessToken")?.value;
   const isAuthPage =
     request.nextUrl.pathname.startsWith("/login") ||
     request.nextUrl.pathname.startsWith("/register");
@@ -30,7 +30,7 @@ export async function middleware(request: NextRequest) {
     try {
       const backendUrl = getBackendUrl();
       const response = await fetch(
-        `${backendUrl}/user/me`,
+        `${backendUrl}/user/current-user`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -55,7 +55,7 @@ export async function middleware(request: NextRequest) {
     try {
       const backendUrl = getBackendUrl();
       const response = await fetch(
-        `${backendUrl}/user/me`,
+        `${backendUrl}/user/current-user`,
         {
           headers: {
             Authorization: `Bearer ${token}`,

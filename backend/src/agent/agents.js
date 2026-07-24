@@ -10,16 +10,42 @@ import { executePipeline } from "../services/pipelineExecutor.service.js";
 import { analyzeFailure } from "../services/failureAnalyzer.service.js";
 import { applyFix } from "../services/fixer.service.js";
 import { generateBranchName } from "../utils/branchName.js";
+import { emitRunEvent } from "../utils/executionContext.js";
 
 /**
  * Repo Agent
  */
 export const repoAgent = async (state) => {
+  emitRunEvent({
+    runId: state.runId,
+    type: "STATUS",
+    agent: "repo",
+    status: "RUNNING",
+    message: "Cloning repository...",
+  });
+
   state.branch = generateBranchName(state.teamName, state.leaderName);
 
   await cloneRepo(state.repoUrl, state.repoPath, state.githubToken);
 
+  emitRunEvent({
+    runId: state.runId,
+    type: "STATUS",
+    agent: "repo",
+    status: "SUCCESS",
+    message: "Repository cloned",
+  });
+
   await createBranch(state.repoPath, state.branch);
+
+  emitRunEvent({
+    runId: state.runId,
+    type: "STATUS",
+    agent: "repo",
+    status: "SUCCESS",
+    message: `Created working branch ${state.branch}`,
+    branch: state.branch,
+  });
 
   return state;
 };
@@ -28,13 +54,37 @@ export const repoAgent = async (state) => {
  * Pipeline Agent
  */
 export const pipelineAgent = async (state) => {
+  emitRunEvent({
+    runId: state.runId,
+    type: "STATUS",
+    agent: "pipeline",
+    status: "RUNNING",
+    message: "Detecting workflow...",
+  });
+
   const type = detectPipeline(state.repoPath);
 
   if (type === "NONE") {
+    emitRunEvent({
+      runId: state.runId,
+      type: "ERROR",
+      agent: "pipeline",
+      status: "FAILED",
+      message: "No CI/CD pipeline found",
+    });
     throw new Error("No CI/CD pipeline found");
   }
 
   state.commands = extractPipelineCommands(state.repoPath);
+
+  emitRunEvent({
+    runId: state.runId,
+    type: "STATUS",
+    agent: "pipeline",
+    status: "SUCCESS",
+    message: "Workflow parsed",
+    commands: state.commands,
+  });
 
   return state;
 };
@@ -43,7 +93,27 @@ export const pipelineAgent = async (state) => {
  * Executor Agent
  */
 export const executorAgent = async (state) => {
+  emitRunEvent({
+    runId: state.runId,
+    type: "STATUS",
+    agent: "executor",
+    status: "RUNNING",
+    message: "Running pipeline commands",
+  });
+
   state.execution = executePipeline(state.commands, state.repoPath);
+
+  emitRunEvent({
+    runId: state.runId,
+    type: state.execution.success ? "STATUS" : "ERROR",
+    agent: "executor",
+    status: state.execution.success ? "SUCCESS" : "FAILED",
+    message: state.execution.success
+      ? "Pipeline execution completed"
+      : state.execution.error,
+    command: state.execution.failedCommand || null,
+    error: state.execution.success ? null : state.execution.error,
+  });
 
   return state;
 };
@@ -54,10 +124,28 @@ export const executorAgent = async (state) => {
 export const analyzerAgent = async (state) => {
   if (state.execution.success) return state;
 
+  emitRunEvent({
+    runId: state.runId,
+    type: "STATUS",
+    agent: "analyzer",
+    status: "RUNNING",
+    message: "Analyzing failure",
+    command: state.execution.failedCommand,
+  });
+
   state.bugType = analyzeFailure(
     state.execution.error,
     state.execution.failedCommand,
   );
+
+  emitRunEvent({
+    runId: state.runId,
+    type: "STATUS",
+    agent: "analyzer",
+    status: "SUCCESS",
+    message: state.bugType.reason,
+    bugType: state.bugType.type,
+  });
 
   return state;
 };
@@ -85,6 +173,14 @@ export const fixerAgent = async (state) => {
       timestamp: now,
     });
 
+    emitRunEvent({
+      runId: state.runId,
+      type: "STATUS",
+      agent: "fixer",
+      status: "SUCCESS",
+      message: "Pipeline passed without requiring fixes",
+    });
+
     return state;
   }
 
@@ -96,6 +192,15 @@ export const fixerAgent = async (state) => {
   if (!fix) return state;
 
   state.fixMessage = fix.message;
+
+  emitRunEvent({
+    runId: state.runId,
+    type: "FIX",
+    agent: "fixer",
+    status: "SUCCESS",
+    message: fix.action,
+    filesModified: fix.filesModified,
+  });
 
   state.timeline.push({
     iteration: state.iteration,
@@ -124,7 +229,25 @@ export const fixerAgent = async (state) => {
 export const gitAgent = async (state) => {
   if (!state.fixMessage) return state;
 
+  emitRunEvent({
+    runId: state.runId,
+    type: "STATUS",
+    agent: "git",
+    status: "RUNNING",
+    message: "Committing and pushing fixes",
+    branch: state.branch,
+  });
+
   await commitChanges(state.repoPath, state.fixMessage, state.branch);
+
+  emitRunEvent({
+    runId: state.runId,
+    type: "STATUS",
+    agent: "git",
+    status: "SUCCESS",
+    message: "Commit pushed",
+    branch: state.branch,
+  });
 
   state.iteration++;
 
