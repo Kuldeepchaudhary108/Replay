@@ -1,14 +1,16 @@
-import fs from "fs";
+import fs from "fs-extra";
+import path from "node:path";
 import { randomUUID } from "crypto";
 import { buildAgentGraph } from "./langGraphRunner.js";
 import { cleanup } from "../services/cleanup.service.js";
 import {
   completeRunRecord,
   createRunRecord,
+  patchRunRecord,
+  failRunRecord,
 } from "../services/runRegistry.js";
 import {
   emitRunEvent,
-  patchRunRecord,
   runWithExecutionContext,
 } from "../utils/executionContext.js";
 
@@ -16,10 +18,19 @@ export async function runAgent(input, context = {}) {
   const graph = buildAgentGraph();
   const runId = input.runId || randomUUID();
   const startedAt = Date.now();
+  const workspacePath = path.resolve("sandbox", "jobs", runId);
+  const repoPath = path.join(workspacePath, "repo");
+  const resultsPath = path.join(workspacePath, "results.json");
+
+  await fs.remove(workspacePath);
+  await fs.ensureDir(workspacePath);
 
   createRunRecord(runId, {
     input,
     status: "RUNNING",
+    workspacePath,
+    repoPath,
+    resultsPath,
   });
 
   emitRunEvent({
@@ -32,12 +43,12 @@ export async function runAgent(input, context = {}) {
 
   try {
     const finalState = await runWithExecutionContext(
-      { io: context.io, runId },
+      { io: context.io, runId, workspacePath, repoPath, resultsPath },
       () =>
         graph.invoke({
           ...input,
           runId,
-          repoPath: "sandbox/repo",
+          repoPath,
           iteration: 1,
           timeline: [],
           startTime: startedAt,
@@ -82,21 +93,25 @@ export async function runAgent(input, context = {}) {
       totalTimeSeconds: durationSeconds,
     };
 
-    // fs.writeFileSync("results.json", JSON.stringify(results, null, 2));
-    // patchRunRecord({
-    //   runId,
-    //   status: results.status,
-    //   completedAt: results.completedAt,
-    //   result: results,
-    // });
-    // completeRunRecord(runId, results);
-    // emitRunEvent({
-    //   runId,
-    //   type: "COMPLETE",
-    //   status: results.status,
-    //   message: "Execution finished",
-    //   report: results,
-    // });
+    await fs.writeJson(resultsPath, results, { spaces: 2 });
+
+    patchRunRecord({
+      runId,
+      workspacePath,
+      repoPath,
+      resultsPath,
+      status: results.status,
+      completedAt: results.completedAt,
+    });
+    completeRunRecord(runId, results);
+    emitRunEvent({
+      runId,
+      type: "COMPLETE",
+      status: results.status,
+      message: "Execution finished",
+      report: results,
+    });
+
     return results;
   } catch (error) {
     failRunRecord(runId, error);
@@ -110,7 +125,11 @@ export async function runAgent(input, context = {}) {
     });
     throw error;
   } finally {
-    await cleanup("sandbox/repo");
-    console.log("[CLEANUP] Sandbox removed");
+    try {
+      await cleanup(workspacePath);
+      console.log(`[CLEANUP] Workspace ${workspacePath} removed`);
+    } catch (cleanupError) {
+      console.error(`[CLEANUP] Failed to remove ${workspacePath}:`, cleanupError.message);
+    }
   }
 }

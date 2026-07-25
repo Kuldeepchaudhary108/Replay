@@ -167,6 +167,14 @@ export const useRunStore = create<RunStoreState>((set) => ({
   ingestEvent: (event) =>
     set((state) => {
       const timestamp = event.timestamp || new Date().toISOString();
+      const eventKey = `${event.agent || ""}-${event.status || ""}-${event.message || ""}-${timestamp}`;
+      const isDuplicate = state.events.some(
+        (e) =>
+          `${e.agent || ""}-${e.status || ""}-${e.message || ""}-${e.timestamp || ""}` === eventKey,
+      );
+
+      if (isDuplicate) return state;
+
       const events = [...state.events, { ...event, timestamp }];
       const logEntry: RunLogEntry = {
         id: `${timestamp}-${events.length}`,

@@ -28,6 +28,12 @@ export function updateRunRecord(runId, patch = {}) {
   return updated;
 }
 
+export function patchRunRecord(patch = {}) {
+  const runId = patch?.runId;
+  if (!runId) return null;
+  return updateRunRecord(runId, patch);
+}
+
 export function appendRunEvent(runId, event) {
   const existing = runs.get(runId) || createRunRecord(runId);
   existing.events = [...existing.events, event];

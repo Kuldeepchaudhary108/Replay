@@ -3,7 +3,7 @@ export const AgentState = {
   teamName: null,
   leaderName: null,
   githubToken: null,
-  repoPath: "sandbox/repo",
+  repoPath: null,
   branch: null,
   commands: [],
   execution: null,

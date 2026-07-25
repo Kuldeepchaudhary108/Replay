@@ -23,10 +23,12 @@ export function useAgentRunSocket(runId?: string) {
   const setConnectionStatus = useRunStore((state) => state.setConnectionStatus);
   const ingestEvent = useRunStore((state) => state.ingestEvent);
   const setRunId = useRunStore((state) => state.setRunId);
+  const resetRun = useRunStore((state) => state.resetRun);
 
   useEffect(() => {
     if (!runId) return;
 
+    resetRun();
     const client = getSocket();
     setRunId(runId);
     setConnectionStatus("connecting");
